@@ -13,13 +13,19 @@ __all__ = [
 class XLSImportError(ValueError):
   """Base class for all XLS import errors"""
 
-  def __init__(self, message: str, row: int=None, column: int=None):
+  def __init__(
+      self,
+      message: str,
+      row: int=None,
+      column: int=None,
+      column_enum=None
+  ):
     super().__init__()
     self.message = message
     self.row = row
     self.column = column
 
-    self.column_enum = None
+    self.column_enum = column_enum
     self.args = [self.message]
 
   def __str__(self, *args, **kwargs):
@@ -42,3 +48,8 @@ class InvalidXLSFileException(XLSImportError):
 class ColumnReadException(XLSImportError):
   """Thrown when for any error when reading a column"""
   pass
+
+
+class MissingSheetException(XLSImportError):
+  """Thrown when there is a missing sheet."""
+

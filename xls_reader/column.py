@@ -97,7 +97,7 @@ class ColumnReader(object, metaclass=abc.ABCMeta):
     self._required = val
 
   def read_column(
-      self, row: ReadOnlyRow, cell: ReadOnlyCell, instance: InstanceType
+    self, row: ReadOnlyRow, cell: ReadOnlyCell, instance: InstanceType
   ):
     """
     :param row: full row
@@ -127,13 +127,13 @@ class BaseColumnReader(ColumnReader):
   """Base class for column reader"""
 
   def __init__(
-      self,
-      *,
-      attr_name: str,
-      expected_types: typing.Union[None, type, typing.Sequence[type]],
-      required: bool=True,
-      empty_values: list=None,
-      default=None
+    self,
+    *,
+    attr_name: str,
+    expected_types: typing.Union[None, type, typing.Sequence[type]],
+    required: bool=True,
+    empty_values: list=None,
+    default=None
   ):
     """
     :param attr_name: Value will be set to instance under this attribute
@@ -182,13 +182,6 @@ class BaseColumnReader(ColumnReader):
         "Cell value is of unexpected type {} (value: {})".format(type(cell.value), cell.value)
       )
 
-  def get_value_from_cell(self, cell):
-    """Returns and sanitizes value from cell."""
-    self.pre_checks(cell)
-    if self.is_value_empty(cell.value):
-      return self.default
-    return cell.value
-
   def read_column(self, row: ReadOnlyRow, cell: ReadOnlyCell, instance: dict):
     instance[self.attr_name] = self.get_value_from_cell(cell)
 
@@ -197,7 +190,7 @@ class StringReader(BaseColumnReader):
   def __init__(self, allow_numbers_as_strings=False, **kwargs):
     kwargs.setdefault("expected_types", (str, ))
     super().__init__(**kwargs)
-    self.allow_numbers_as_strings=allow_numbers_as_strings
+    self.allow_numbers_as_strings = allow_numbers_as_strings
 
   @property
   def expected_types(self):
@@ -214,19 +207,22 @@ class StringReader(BaseColumnReader):
 class IntegerReader(BaseColumnReader):
 
   def __init__(self, **kwargs):
-    kwargs.setdefault("expected_types", (int, float, decimal.Decimal))
+    kwargs.setdefault("expected_types", (int, float, decimal.Decimal, str))
     super().__init__(**kwargs)
 
   def get_value_from_cell(self, cell):
     self.pre_checks(cell)
     if self.is_value_empty(cell.value):
       return self.default
-    return int(cell.value)
-  
+    try:
+      return int(cell.value)
+    except ValueError:
+      raise exceptions.ColumnReadException("Can't read cell value as string. Value is: '{}'".format(cell.value))
+
 
 class DecimalReader(BaseColumnReader):
   def __init__(self, **kwargs):
-    kwargs.setdefault("expected_types", (int, float, decimal.Decimal))
+    kwargs.setdefault("expected_types", (int, float, decimal.Decimal, str))
     super().__init__(**kwargs)
 
   def get_value_from_cell(self, cell):
@@ -236,9 +232,20 @@ class DecimalReader(BaseColumnReader):
     if isinstance(cell.value, decimal.Decimal):
       return cell.value
     if isinstance(cell.value, (float, int, str)):
-      return decimal.Decimal(cell.value)
-    raise exceptions.ColumnReadException(
-      f"Invalid cell value for decimal cell. Got: {cell.value}, type: {type(cell.value)}")
+      try:
+        return decimal.Decimal(cell.value)
+      except decimal.DecimalException as e:
+        raise exceptions.ColumnReadException(
+          "Invalid cell value for decimal cell. Got: {}, type: {}".format(
+            cell.value, type(cell.value)
+          )
+        ) from e
+        # This shouldn't hapen as type is verified in pre_checks
+    raise exceptions.ColumnReadException(  # pragma: no cover
+      "Invalid cell value for decimal cell. Got: {}, type: {}".format(
+        cell.value, type(cell.value)
+      )
+    )
 
 
 class EnumReader(BaseColumnReader):
@@ -247,10 +254,10 @@ class EnumReader(BaseColumnReader):
   """
 
   def __init__(
-      self,
-      attr_name: str,
-      enum_type,
-      required: bool=True
+    self,
+    attr_name: str,
+    enum_type,
+    required: bool=True
   ):
     super().__init__(
       attr_name=attr_name,
@@ -260,16 +267,20 @@ class EnumReader(BaseColumnReader):
     self.enum_type = enum_type
 
   def get_from_enum(self, value):
+    if isinstance(value, str):
+      value = value.lower()
     for name, enum_instance in self.enum_type.__members__.items():
-      if name.lower() == value.lower():
+      if name.lower() == value:
         return enum_instance
       if enum_instance.value == value:
         return enum_instance
       if isinstance(enum_instance.value, str):
-        if enum_instance.value.lower() == value.lower():
+        if enum_instance.value.lower() == value:
           return enum_instance
     raise exceptions.ColumnReadException(
-      f"Couldn't parse column value '{value}', for enum type {self.enum_type} "
+      "Couldn't parse column value '{}', for enum type {}.".format(
+        value, self.enum_type
+      )
     )
 
   def get_value_from_cell(self, cell):

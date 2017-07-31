@@ -18,6 +18,7 @@ from . exceptions import (
   InvalidHeaderFormat,
   UnknownColumnError,
   InvalidXLSFileException,
+  MissingSheetException,
 )
 
 __all__ = ['DataImporter']
@@ -31,7 +32,7 @@ class DataImporter(object):
   Imports an XLS file, we decide what is in given column by reading XLS header,
   which must be first row.
   """
-  
+
   @classmethod
   @abc.abstractmethod
   def get_column_enum(cls) -> Column:
@@ -65,7 +66,7 @@ class DataImporter(object):
     """
     Returns a dict of columns that are optional
     """
-    return {
+    return {  # pragma: no cover
       column: reader
       for column, reader in cls.get_all_columns().items()
       if not reader.required
@@ -82,15 +83,15 @@ class DataImporter(object):
     }
 
   def __init__(self, ignore_unknown_columns: bool=False):
-    self.column_mappings: typing.Mapping[Column, int] = None
+    self.column_mappings = None
     """
     A maps a column object to it's index in a XLS file.
     """
-    self.column_mappings_reverse: typing.Mapping[int, Column] = None
+    self.column_mappings_reverse = None
     """
     Maps column index in XLS to column type.
     """
-    self.ignore_unknown_columns=ignore_unknown_columns
+    self.ignore_unknown_columns = ignore_unknown_columns
 
   def read_file(self, file, sheet: str) -> typing.Iterable[InstanceType]:
     """
@@ -99,7 +100,7 @@ class DataImporter(object):
     workbook = load_workbook(file, read_only=True)
 
     if sheet not in workbook:
-      raise XLSImportError(
+      raise MissingSheetException(
         "No such sheet {}. Available sheets: {}".format(sheet, workbook.get_sheet_names())
       )
 
@@ -127,7 +128,9 @@ class DataImporter(object):
     self._make_column_mappings(header)
     for row_idx, row in row_iterator:
       try:
-        yield self.parse_row(row)
+        row = self.parse_row(row)
+        if row is not None:
+          yield row
       except XLSImportError as exc:
         exc.row = row_idx
         raise exc
@@ -140,12 +143,14 @@ class DataImporter(object):
     self.column_mappings_reverse = {
       v: k for (k, v) in self.column_mappings.items()
     }
-    self.missing_columns: typing.Set[Column] = set()
-    found_columns: typing.Set[Column] = self.column_mappings.keys()
+    self.missing_columns = set()
+    found_columns = self.column_mappings.keys()
     for column, reader in self.get_all_columns().items():
       if column not in found_columns:
         if reader.required:
-          raise XLSImportError(f"Missing required column {column}.")
+          raise XLSImportError(
+            "Missing required column {}.".format(column)
+          )
         else:
           self.missing_columns.add(column)
 
@@ -193,7 +198,7 @@ class DataImporter(object):
       value = row[index].value
       if value is None:
         # If column is None we can check other columns
-        continue
+        continue  # pragma: no cover
       if not isinstance(value, str):
         # If column does not contain a string it is not considered empty
         return False
@@ -240,7 +245,7 @@ class DataImporter(object):
     Returns cell from row using column object.
     """
     if column not in self.column_mappings:
-      raise InvalidXLSFileException("Missing column {}".format(column))
+      raise InvalidXLSFileException("Missing column {}".format(column))  # pragma: no cover
     index = self.column_mappings[column]
     return row[index]
 
@@ -255,7 +260,7 @@ class DataImporter(object):
     Parses a column and sets read value to an instance.
     """
     if required and column not in self.column_mappings:
-      raise InvalidXLSFileException("Missing column {}".format(column))
+      raise InvalidXLSFileException("Missing column {}".format(column))  # pragma: no cover
     if column not in self.column_mappings:
       return
     parser = self.get_all_columns()[column]
@@ -275,7 +280,7 @@ class DataImporter(object):
         self.parse_column(row, column, instance, column in required_columns)
       except XLSImportError as exc:
         column_id = self.column_mappings.get(column)
-        exc.column = get_column_letter(column_id)
+        exc.column = get_column_letter(column_id+1)
         exc.column_enum = column
         raise exc
 

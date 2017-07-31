@@ -16,24 +16,28 @@ class DataColumns(Column):
 
   # A string column
   NAME = ColumnDescription(
-    regex="Name", # Name is the column header
+    regex="Name",  # Name is the column header
     reader=StringReader(attr_name="name")
   )
+
   PRICE_CENTS = ColumnDescription(
     regex="Price",
     reader=DecimalReader(attr_name="price")
   )
-  
+
   LOCATION = ColumnDescription(
     regex=re.compile("\s*Loc.*", re.IGNORECASE),
-    reader = EnumReader(attr_name="location", enum_type=Category)
+    reader=EnumReader(attr_name="location", enum_type=Category)
   )
+
   DESCRIPTION = ColumnDescription(
-    regex ="description", reader=StringReader(attr_name="description", required=False)
+    regex="description", reader=StringReader(attr_name="description", required=False)
   )
+
   ACTIVE = ColumnDescription(
     regex="active", reader=BooleanReader(required=False, default=True, attr_name="active")
   )
+
   DATE_ADDED = ColumnDescription(
     regex="date", reader=DatetimeReader(required=True, attr_name="date_added")
   )
