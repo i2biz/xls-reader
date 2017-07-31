@@ -1,4 +1,4 @@
-"""Generic code for XLS IO."""
+"""Data importer."""
 import abc
 import typing
 
@@ -48,7 +48,6 @@ class DataImporter(object):
     pass
 
   @classmethod
-  @abc.abstractmethod
   def get_required_columns(cls) -> ColumnMap:
     """
     Returns a dict of columns that are required. Each column is mapped to
@@ -61,7 +60,6 @@ class DataImporter(object):
     }
 
   @classmethod
-  @abc.abstractmethod
   def get_optional_columns(cls) -> ColumnMap:
     """
     Returns a dict of columns that are optional
@@ -82,7 +80,7 @@ class DataImporter(object):
       for column in cls.get_column_enum().__members__.values()
     }
 
-  def __init__(self, ignore_unknown_columns: bool=False):
+  def __init__(self, ignore_unknown_columns: bool = False):
     self.column_mappings = None
     """
     A maps a column object to it's index in a XLS file.
@@ -92,6 +90,11 @@ class DataImporter(object):
     Maps column index in XLS to column type.
     """
     self.ignore_unknown_columns = ignore_unknown_columns
+
+    self.missing_columns = set()
+    """
+    Set that contains columns that are missing from the XLS.
+    """
 
   def read_file(self, file, sheet: str) -> typing.Iterable[InstanceType]:
     """
@@ -112,7 +115,7 @@ class DataImporter(object):
     Reads a XLS file given an iterable of rows.
     """
 
-    def is_row_empty(row: ReadOnlyRow):
+    def __is_row_empty(row: ReadOnlyRow):
       for cell in row:
         if isinstance(cell.value, str):
           if cell.value.strip():
@@ -123,7 +126,7 @@ class DataImporter(object):
 
     row_iterator = enumerate(rows)
     header_idx, header = next(row_iterator)  # pylint: disable=unused-variable
-    while is_row_empty(header):
+    while __is_row_empty(header):
       header_idx, header = next(row_iterator)  # pylint: disable=unused-variable
     self._make_column_mappings(header)
     for row_idx, row in row_iterator:
@@ -166,7 +169,7 @@ class DataImporter(object):
       if value is None:
         return True
       if isinstance(value, str):
-        return len(value.strip()) == 0
+        return len(value.strip()) == 0  # pylint: disable=len-as-condition
       return False
 
     for column_idx, cell in enumerate(headers):
@@ -175,7 +178,7 @@ class DataImporter(object):
 
       try:
         column = column_enum.match_header(str(cell.value))
-      except UnknownColumnError as e:
+      except UnknownColumnError:
         if not self.ignore_unknown_columns:
           raise
         else:
@@ -280,7 +283,7 @@ class DataImporter(object):
         self.parse_column(row, column, instance, column in required_columns)
       except XLSImportError as exc:
         column_id = self.column_mappings.get(column)
-        exc.column = get_column_letter(column_id+1)
+        exc.column = get_column_letter(column_id + 1)
         exc.column_enum = column
         raise exc
 
@@ -300,7 +303,7 @@ class DataImporter(object):
     if self.is_row_empty(row):
       return None
     if self.is_header_row(row):
-      # Sometimes there are copies of header in the xls, see
+      # Sometimes there are copies of header in the XLS, see
       # validate_internal_header for the rest of the explanation.
       self.validate_internal_header(row)
       return None

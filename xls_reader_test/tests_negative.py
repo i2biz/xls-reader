@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import datetime
-from decimal import Decimal
+# pylint: disable=missing-docstring,invalid-name
+
 import pathlib
 import unittest
 
@@ -11,7 +11,9 @@ from xls_reader.exceptions import MissingSheetException
 from . import bindings
 
 
-EXAMPLE_FILES = pathlib.Path(__file__).parent.absolute() / "example_files"
+PARENT_DIR = pathlib.Path(__file__).parent.absolute()  # pylint: disable=no-member
+
+EXAMPLE_FILES = PARENT_DIR / "example_files"
 
 
 class SheetTestCase(unittest.TestCase):
@@ -42,7 +44,9 @@ class TestUnknownSheet(SheetTestCase):
   FILE_NAME = 'examples_missing_sheet.xlsx'
   SHEET_NAME = 'no such sheet'
   EXPECTED_EXCEPTION = MissingSheetException(
-    message="""No such sheet no such sheet. Available sheets: ['simple_sheet', 'different_order', 'empty headers and columns', 'missing not required column', 'internal header', 'empty rows']"""
+    message="No such sheet no such sheet. Available sheets: "
+            "['simple_sheet', 'different_order', 'empty headers and columns', "
+            "'missing not required column', 'internal header', 'empty rows']"
   )
 
 
@@ -63,7 +67,9 @@ class TestDuplicateColumn(SheetTestCase):
 class InternalHeaderWrongOrder(SheetTestCase):
   SHEET_NAME = 'internal header wrong order'
   EXPECTED_EXCEPTION = XLSImportError(
-    message="There was a header in the middle of the document, and it wasn't matching the main header at the top of the document. Please validate if columns match in both headers and remove one that is lower in the XLS.",
+    message="There was a header in the middle of the document, and it wasn't matching "
+            "the main header at the top of the document. Please validate if columns "
+            "match in both headers and remove one that is lower in the XLS.",
     row=4
   )
 
@@ -86,7 +92,7 @@ class InvalidValueInColumn(SheetTestCase):
   )
 
 
-class InvalidValueInColumn(SheetTestCase):
+class InvalidValueInColumn2(SheetTestCase):
   SHEET_NAME = 'invalid value in column 2'
   EXPECTED_EXCEPTION = ColumnReadException(
     message="Invalid value in yes/no column nah",

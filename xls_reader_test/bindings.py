@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=missing-docstring,invalid-name
 
 import enum
 import re
@@ -26,7 +27,7 @@ class DataColumns(Column):
   )
 
   LOCATION = ColumnDescription(
-    regex=re.compile("\s*Loc.*", re.IGNORECASE),
+    regex=re.compile(r"\s*Loc.*", re.IGNORECASE),
     reader=EnumReader(attr_name="location", enum_type=Category)
   )
 

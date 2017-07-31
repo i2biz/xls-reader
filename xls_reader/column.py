@@ -1,16 +1,13 @@
-"""Generic code for XLS IO."""
+"""Module with columns and column readers."""
 import abc
 import configparser
-import copy
 import datetime
 import decimal
 import enum
 import re
 import typing
 
-from openpyxl.cell import Cell, TIME_TYPES
 from openpyxl.cell.read_only import ReadOnlyCell
-from openpyxl.styles import Style
 
 from . import exceptions
 
@@ -61,7 +58,7 @@ class Column(enum.Enum):
   def get_regex(cls, column: 'Column'):
     """Gets a regex that should match the column"""
     regex = column.value.regex
-    if isinstance(regex,  str):
+    if isinstance(regex, str):
       return re.compile(
         r"^\s*" + r"\s*".join(regex.split()) + r"\s*$",
         re.IGNORECASE
@@ -86,18 +83,10 @@ class ColumnReader(object, metaclass=abc.ABCMeta):
 
   def __init__(self):
     super().__init__()
-    self._required = True
-
-  @property
-  def required(self):
-    return self._required
-
-  @required.setter
-  def required(self, val):
-    self._required = val
+    self.required = True
 
   def read_column(
-    self, row: ReadOnlyRow, cell: ReadOnlyCell, instance: InstanceType
+      self, row: ReadOnlyRow, cell: ReadOnlyCell, instance: InstanceType
   ):
     """
     :param row: full row
@@ -127,13 +116,13 @@ class BaseColumnReader(ColumnReader):
   """Base class for column reader"""
 
   def __init__(
-    self,
-    *,
-    attr_name: str,
-    expected_types: typing.Union[None, type, typing.Sequence[type]],
-    required: bool=True,
-    empty_values: list=None,
-    default=None
+      self,
+      *,
+      attr_name: str,
+      expected_types: typing.Union[None, type, typing.Sequence[type]],
+      required: bool = True,
+      empty_values: list = None,
+      default=None
   ):
     """
     :param attr_name: Value will be set to instance under this attribute
@@ -158,6 +147,11 @@ class BaseColumnReader(ColumnReader):
 
   @property
   def expected_types(self):
+    """
+    Return expected types for this column. This should be python types.
+
+    If cell contains different type this will raise an error.
+    """
     if self._expected_types is None:
       return None
     if not self.required:
@@ -187,6 +181,8 @@ class BaseColumnReader(ColumnReader):
 
 
 class StringReader(BaseColumnReader):
+  """Reader that reads a string."""
+
   def __init__(self, allow_numbers_as_strings=False, **kwargs):
     kwargs.setdefault("expected_types", (str, ))
     super().__init__(**kwargs)
@@ -205,7 +201,7 @@ class StringReader(BaseColumnReader):
 
 
 class IntegerReader(BaseColumnReader):
-
+  """Reader that reads an integer."""
   def __init__(self, **kwargs):
     kwargs.setdefault("expected_types", (int, float, decimal.Decimal, str))
     super().__init__(**kwargs)
@@ -217,10 +213,14 @@ class IntegerReader(BaseColumnReader):
     try:
       return int(cell.value)
     except ValueError:
-      raise exceptions.ColumnReadException("Can't read cell value as string. Value is: '{}'".format(cell.value))
+      raise exceptions.ColumnReadException(
+        "Can't read cell value as string. Value is: '{}'".format(cell.value)
+      )
 
 
 class DecimalReader(BaseColumnReader):
+  """Reader that reads a decimal."""
+
   def __init__(self, **kwargs):
     kwargs.setdefault("expected_types", (int, float, decimal.Decimal, str))
     super().__init__(**kwargs)
@@ -234,13 +234,13 @@ class DecimalReader(BaseColumnReader):
     if isinstance(cell.value, (float, int, str)):
       try:
         return decimal.Decimal(cell.value)
-      except decimal.DecimalException as e:
+      except decimal.DecimalException as exception:
         raise exceptions.ColumnReadException(
           "Invalid cell value for decimal cell. Got: {}, type: {}".format(
             cell.value, type(cell.value)
           )
-        ) from e
-        # This shouldn't hapen as type is verified in pre_checks
+        ) from exception
+        # This shouldn't happen as type is verified in pre_checks
     raise exceptions.ColumnReadException(  # pragma: no cover
       "Invalid cell value for decimal cell. Got: {}, type: {}".format(
         cell.value, type(cell.value)
@@ -254,10 +254,10 @@ class EnumReader(BaseColumnReader):
   """
 
   def __init__(
-    self,
-    attr_name: str,
-    enum_type,
-    required: bool=True
+      self,
+      attr_name: str,
+      enum_type,
+      required: bool = True
   ):
     super().__init__(
       attr_name=attr_name,
@@ -267,6 +267,7 @@ class EnumReader(BaseColumnReader):
     self.enum_type = enum_type
 
   def get_from_enum(self, value):
+    """Convert cell value to enum."""
     if isinstance(value, str):
       value = value.lower()
     for name, enum_instance in self.enum_type.__members__.items():
@@ -296,7 +297,7 @@ class EnumReader(BaseColumnReader):
 class DatetimeReader(BaseColumnReader):
   """Reads a date/datetime instance."""
 
-  def __init__(self, attr_name: str, required: bool=True):
+  def __init__(self, attr_name: str, required: bool = True):
     super().__init__(
       attr_name=attr_name,
       expected_types=(datetime.date, datetime.datetime),

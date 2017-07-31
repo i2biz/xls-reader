@@ -1,4 +1,8 @@
 # coding=utf-8
+
+# pylint: disable=missing-docstring,invalid-name
+
+
 import datetime
 import decimal
 import enum

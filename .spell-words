@@ -62,3 +62,6 @@ enumfield
 overriden
 javascript
 dict
+iterable
+regex
+datetime

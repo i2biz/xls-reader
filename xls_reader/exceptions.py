@@ -1,4 +1,4 @@
-"""Generic code for XLS IO."""
+"""Exception classes."""
 
 __all__ = [
   "XLSImportError",
@@ -16,8 +16,8 @@ class XLSImportError(ValueError):
   def __init__(
       self,
       message: str,
-      row: int=None,
-      column: int=None,
+      row: int = None,
+      column: int = None,
       column_enum=None
   ):
     super().__init__()
