@@ -47,7 +47,7 @@ if __name__ == "__main__":
     name='xls_reader',
     version='0.1.0',
     packages=packages,
-    license='All Rights reserved',
+    license='MIT',
     author='Jacek Bzdak',
     author_email='jacek@askesis.pl',
     description='A utility to read XLS files formatted by humans',
